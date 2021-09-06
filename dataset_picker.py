@@ -6,6 +6,7 @@ import numpy as np
 import sys
 import shutil
 from dataclasses import dataclass
+from mark_remover import MarkRemover
 
 KEY_ESCAPE      = 0x1b
 KEY_ARROW_LEFT  = 0x250000
@@ -54,16 +55,18 @@ if __name__ == "__main__":
         
     target = sys.argv[1]
 
-    files = [Feature(file_path, False) for file_path in glob.glob(target + '**/**/*.*', recursive=True)]
+    files = [Feature(file_path, False, False) for file_path in glob.glob(target + '**/**/*.*', recursive=True)]
     index = 0
     while index >= 0 and index < len(files):
         file        = files[index]
         print(file.path, "|", index, "/", len(files))
         filename    = os.path.basename(file.path)
         trash_path  = os.path.join('trash', filename)
-        mark_path   = os.path.join('mark', filename)
-        file_path   = trash_path if file.deleted else file.path
-
+        mark_path   = os.path.join('trash_mark', filename)
+        file_path = file.path
+        if file.deleted:
+            file_path = trash_path
+        
         img = cv2.imread(file_path, cv2.IMREAD_UNCHANGED)
         targetWidth, targetHeight = calc_ratio(img)
         img = cv2.resize(img, (targetWidth, targetHeight))
@@ -83,14 +86,14 @@ if __name__ == "__main__":
         cv2.imshow('Image', output)
         key = cv2.waitKeyEx(0)
         
-        if key == -1 or key == KEY_ESCAPE:
+        if key == -1 or key == KEY_ESCAPE: # Quit
             break
-        elif key == KEY_ENTER:
+        elif key == KEY_ENTER: # Restore picture
             if file.deleted == True:
                 shutil.move(trash_path, file.path)
                 file.deleted = False
             index = index + 1
-        elif key == KEY_DELETE:
+        elif key == KEY_DELETE: # Remove picture
             if file.deleted == False:
                 shutil.move(file.path, trash_path)
                 file.deleted = True
@@ -99,6 +102,18 @@ if __name__ == "__main__":
             index = index + 1
         elif key == KEY_ARROW_LEFT:
             index = index - 1
+        elif key == KEY_SPACE: # WaterMark removal
+            if file.mark_removed == False:
+                mark_remover = MarkRemover()
+                cleaned = mark_remover.process_file(file_path)
+                shutil.move(file.path, mark_path)
+                cv2.imwrite(file.path, cleaned)
+                file.mark_removed = True
+            elif file.mark_removed == True:
+                os.remove(file.path)
+                shutil.move(mark_path, file.path)
+                file.mark_removed = False
+        
         index = 0 if index < 0 else index
         index = len(files) - 1 if index == len(files) else index
         sys.stdout.flush()
