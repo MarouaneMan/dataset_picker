@@ -3,14 +3,44 @@ import os
 import glob
 import sys
 import numpy as np
+import sys
+import shutil
+from dataclasses import dataclass
+
+KEY_ESCAPE      = 0x1b
+KEY_ARROW_LEFT  = 0x250000
+KEY_ARROW_RIGHT = 0x270000
+KEY_ENTER       = 0xd
+KEY_DELETE      = 0x2e0000
+KEY_SPACE       = 0x20
+
+@dataclass
+class Feature:
+    path: str
+    deleted: bool
+    mark_removed: bool
+
+def calc_ratio(img):
+    # Calculate ratio
+    ratio = img.shape[0] / img.shape[1]
+    targetWidth = 600
+    targetHeight = int(targetWidth * ratio)
+    if targetHeight > 1024:
+        targetHeight = 1024
+        targetWidth = int(targetHeight / ratio)
+    return (targetWidth, targetHeight)
+
+def create_mask(img):
+    bg_mask = np.zeros((img.shape[0], img.shape[1], 3), np.uint8)
+    fg_mask = img.copy()
+    fg_mask[:,:,0:3] = 255
+    mask = blend(fg_mask, bg_mask)
+    return mask
 
 def blend(fg, bg):
     output = np.empty((fg.shape[0], fg.shape[1], 3), np.uint8)
     # Normalize alpha channel
     alpha = fg[:,:,3] / 255.0
-    # output[:,:,0] = np.clip(fg[:,:,0] * alpha + bg[:,:,0] * (1 - alpha), 0, 255)
-    # output[:,:,1] = np.clip(fg[:,:,1] * alpha + bg[:,:,1] * (1 - alpha), 0, 255)
-    # output[:,:,2] = np.clip(fg[:,:,2] * alpha + bg[:,:,2] * (1 - alpha), 0, 255)
     output[:,:,0] = fg[:,:,0] * alpha + bg[:,:,0] * (1 - alpha)
     output[:,:,1] = fg[:,:,1] * alpha + bg[:,:,1] * (1 - alpha)
     output[:,:,2] = fg[:,:,2] * alpha + bg[:,:,2] * (1 - alpha)
@@ -24,23 +54,22 @@ if __name__ == "__main__":
         
     target = sys.argv[1]
 
-    for filename in glob.iglob(target + '**/**/*.*', recursive=True):
-        
-        img = cv2.imread(filename, cv2.IMREAD_UNCHANGED)
-        
-        # Calculate ratio
-        ratio = img.shape[0] / img.shape[1]
-        targetWidth = 600
-        targetHeight = int(targetWidth * ratio)
+    files = [Feature(file_path, False) for file_path in glob.glob(target + '**/**/*.*', recursive=True)]
+    index = 0
+    while index >= 0 and index < len(files):
+        file        = files[index]
+        print(file.path, "|", index, "/", len(files))
+        filename    = os.path.basename(file.path)
+        trash_path  = os.path.join('trash', filename)
+        mark_path   = os.path.join('mark', filename)
+        file_path   = trash_path if file.deleted else file.path
+
+        img = cv2.imread(file_path, cv2.IMREAD_UNCHANGED)
+        targetWidth, targetHeight = calc_ratio(img)
         img = cv2.resize(img, (targetWidth, targetHeight))
         
-        cv2.imwrite('source.png', img)
-
         # Create mask
-        bg_mask = np.zeros((img.shape[0], img.shape[1], 3), np.uint8)
-        fg_mask = img.copy()
-        fg_mask[:,:,0:3] = 255
-        mask = blend(fg_mask, bg_mask)
+        mask = create_mask(img)
 
         # Background
         width = 64
@@ -52,9 +81,24 @@ if __name__ == "__main__":
         output = np.concatenate((black, white, black_padded_mask), axis=1)
 
         cv2.imshow('Image', output)
-        key = cv2.waitKey(0)
-
-        # #print(img[50:])
-        # # cv2.namedWindow('image', cv2.WINDOW_NORMAL)
-        # # cv2.resizeWindow('image', 1024, 1024)
-        # print(filename)
+        key = cv2.waitKeyEx(0)
+        
+        if key == -1 or key == KEY_ESCAPE:
+            break
+        elif key == KEY_ENTER:
+            if file.deleted == True:
+                shutil.move(trash_path, file.path)
+                file.deleted = False
+            index = index + 1
+        elif key == KEY_DELETE:
+            if file.deleted == False:
+                shutil.move(file.path, trash_path)
+                file.deleted = True
+            index = index + 1
+        elif key == KEY_ARROW_RIGHT:
+            index = index + 1
+        elif key == KEY_ARROW_LEFT:
+            index = index - 1
+        index = 0 if index < 0 else index
+        index = len(files) - 1 if index == len(files) else index
+        sys.stdout.flush()
