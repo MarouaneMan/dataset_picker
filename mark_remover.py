@@ -49,8 +49,7 @@ class MarkRemover():
         valid_contours = []
         for (c, h) in zip(contours, hierarchy[0]):
             if h[3] == -1 :
-                if (cv2.contourArea(c)) > 20:
-                    valid_contours.append(c)
+                valid_contours.append(c)
         
         # Sort contours
         valid_contours = sorted(valid_contours, key=cv2.contourArea)
