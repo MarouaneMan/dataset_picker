@@ -1,10 +1,12 @@
 import os
 import glob
-from albumentations.augmentations.geometric.functional import scale
+#from albumentations.augmentations.geometric.functional import scale
 import cv2
 import numpy as np
 import albumentations as A
 from threading import Thread, Lock
+
+output_folder = "synthetic_dataset"
 
 def calc_new_dimensions(img):
     max_dim = 512
@@ -39,13 +41,13 @@ def augment(img):
 
     transform = A.Compose([
         A.HorizontalFlip(p=0.5),
-        A.ShiftScaleRotate(
-            shift_limit_x=0.4,
-            shift_limit=0,
-            shift_limit_y=0,
-            scale_limit = 0,
-            rotate_limit=0,
-            border_mode=cv2.BORDER_CONSTANT),
+        # A.ShiftScaleRotate(
+        #     shift_limit_x=0,
+        #     shift_limit=0,
+        #     shift_limit_y=0,
+        #     scale_limit=0,
+        #     rotate_limit=0,
+        #     border_mode=cv2.BORDER_CONSTANT),
         A.Blur(p=0.05),
     ])
 
@@ -59,7 +61,8 @@ def generate_img_mask(thread_id, dest_folder, index, fg_path, bg_list):
     fg = cv2.imread(fg_path, cv2.IMREAD_UNCHANGED)
 
     # Calculate new dimensions
-    new_width, new_height = calc_new_dimensions(fg)
+    #new_width, new_height = calc_new_dimensions(fg)
+    new_width, new_height = (320, 320)
 
     # Read and resize the background
     bgs = []
@@ -85,7 +88,7 @@ def generate_img_mask(thread_id, dest_folder, index, fg_path, bg_list):
     cv2.imwrite(os.path.join(image_path, prefix + '_0.jpg'), output_primary)
     cv2.imwrite(os.path.join(mask_path, prefix + '_0.jpg'), mask_primary)
 
-    for i in range(1, 5):
+    for i in range(1, 2):
         fg_augmented = augment(fg_resized)
         mask_augmented = create_mask(fg_augmented)
         output_augmented = blend(fg_augmented, bgs[i])
@@ -135,7 +138,7 @@ def train_worker(thread_id, fg_list, bg_list):
             bgs = []
             for _ in range(0,5):
                 bgs.append(bg_list[train_get_bg_index()])
-            generate_img_mask(thread_id, "E:/generated_dataset/train", index, fg_path, bgs)
+            generate_img_mask(thread_id, "E:/" + output_folder + "/train", index, fg_path, bgs)
         except:
             pass
         index = index + 1
@@ -149,7 +152,7 @@ def test_worker(thread_id, fg_list, bg_list):
             bgs = []
             for _ in range(0,5):
                 bgs.append(bg_list[test_get_bg_index()])
-            generate_img_mask(thread_id, "E:/generated_dataset/test", index, fg_path, bgs)
+            generate_img_mask(thread_id, "E:/" + output_folder + "/test", index, fg_path, bgs)
         except:
             pass
         index = index + 1
