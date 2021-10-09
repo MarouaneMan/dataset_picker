@@ -55,11 +55,12 @@ if __name__ == "__main__":
         
     target = sys.argv[1]
 
-    files = [Feature(file_path, False, False) for file_path in glob.glob(target + '**/**/*.*', recursive=True)]
-    index = 0
+    files = [Feature(file_path, False, False) for file_path in glob.glob(target + '/**/*.*', recursive=True)]
+    index = 2500
     while index >= 0 and index < len(files):
         file        = files[index]
-        print(file.path, "|", index, "/", len(files))
+
+        print(file.path.replace("/", "\\"), "|", index, "/", len(files))
         filename    = os.path.basename(file.path)
         trash_path  = os.path.join('trash', filename)
         mark_path   = os.path.join('trash_mark', filename)

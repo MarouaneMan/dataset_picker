@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import glob
 
 class MarkRemover():
 
@@ -38,12 +39,13 @@ class MarkRemover():
 
         # Invert black and white
         newRet, binary = cv2.threshold(imgGray, 254, 255,cv2.THRESH_BINARY_INV)
-        for x in range(0, 4):
-            contours, hierarchy = cv2.findContours(binary, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-            binary = cv2.drawContours(binary, contours, -1, (255, 255, 255), 3)
+        
+        #for x in range(0, 1):
+        contours, hierarchy = cv2.findContours(binary, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        binary = cv2.drawContours(binary, contours, -1, (255, 255, 255), 3)
 
         # Find contours
-        contours, hierarchy = cv2.findContours(binary, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        #contours, hierarchy = cv2.findContours(binary, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
         # Draw a bounding box around all contours
         valid_contours = []
@@ -63,16 +65,14 @@ class MarkRemover():
         #return len(valid_contours)
         return original
 
-# if __name__ == "__main__":
-#     markRemover = MarkRemover()
-#     markRemover.process_file("test_1.png", show=True)
-#     log = open("contours.txt","w")
-#     files = glob.glob("E:/dataset/deviantart/magic-pngs/**/*.png")
-#     index = 0
-#     while index < len(files):
-#         file = files[index]
-#         contours = process_file(file)
-#         print(file, contours, index, "/", len(files))
-#         if contours > 1:
-#             log.write(file + "\n")
-#         index = index + 1
+if __name__ == "__main__":
+    
+    files = glob.glob("E:/dataset/deviantart/Hallyumi/**/*.png")
+    index = 0
+    while index < len(files):
+        file = files[index]
+        markRemover = MarkRemover()
+        proccessed_img = markRemover.process_file(file)
+        cv2.imwrite(file, proccessed_img)
+        print(file, index, "/", len(files), flush=True)
+        index = index + 1
